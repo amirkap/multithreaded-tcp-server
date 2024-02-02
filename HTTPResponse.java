@@ -1,9 +1,11 @@
+import javax.swing.text.html.HTML;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 enum StatusCode {
     OK(200, "OK"), NOT_FOUND(404, "Not Found"), NOT_IMPLEMENTED(501, "Not Implemented"), BAD_REQUEST(400, "Bad Request"), INTERNAL_SERVER_ERROR(500, "Internal Server Error");
@@ -29,16 +31,109 @@ public class HTTPResponse {
     private StatusCode statusCode;
     private final HTTPRequest httpRequest;
 
-    private StringBuilder response = new StringBuilder();
-
-    private String contentType;
+    private final StringBuilder response = new StringBuilder();
 
     Map<String, String> headers = new HashMap<>();
+
+    private static final String[] HTML_SUFFIXES = {".html"};
+    private static final String[] IMAGE_SUFFIXES = {".bmp", ".gif", ".png", ".jpg"};
+    private static final String[] ICON_SUFFIXES = {".ico"};
 
 
     public HTTPResponse(HTTPRequest httpRequest) {
         this.httpRequest = httpRequest;
         generateResponse();
+    }
+
+    public void generateResponse() {
+        try {
+            handleRequest();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void handleRequest() {
+        if (httpRequest == null) {
+            handleInternalServerError();
+        } else if (!httpRequest.isValid()) {
+            handleBadRequest();
+        } else if (httpRequest.getType() == RequestType.GET) {
+            switch (httpRequest.getType()) {
+                case GET:
+                    handleGetRequest();
+                    break;
+                case HEAD:
+                    handleHeadRequest();
+                    break;
+                case TRACE:
+                    handleTraceRequest();
+                    break;
+            }
+        } else {
+            handleNotImplemented();
+        }
+
+        if (this.statusCode != StatusCode.OK) {
+            response.append(getStatusCodeResponseLine());
+        }
+    }
+
+    private void handleInternalServerError() {
+        this.statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+    }
+
+    private void handleBadRequest() {
+        this.statusCode = StatusCode.BAD_REQUEST;
+    }
+
+    private void handleGetRequest() {
+        String userHome = System.getProperty("user.home");
+        String fullPath = TCPServerMultithreaded.ROOT + httpRequest.getRequestedResource();
+        fullPath = fullPath.replaceFirst("^~", userHome);
+        File requestedFile = new File(fullPath);
+
+        if (requestedFile.exists() && requestedFile.isFile()) {
+            handleFileExists(requestedFile);
+        } else {
+            handleFileNotFound();
+        }
+    }
+
+    private void handleFileExists(File requestedFile) {
+        String fileName = requestedFile.getName().toLowerCase();
+        setContentTypeHeader(fileName);
+
+        this.statusCode = StatusCode.OK;
+        response.append(getStatusCodeResponseLine());
+
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            response.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
+        }
+        response.append("\r\n");
+
+        try {
+            byte[] fileContent = readFile(requestedFile);
+            response.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void handleHeadRequest() {
+        this.statusCode = StatusCode.OK;
+    }
+
+    private void handleTraceRequest() {
+        this.statusCode = StatusCode.OK;
+    }
+
+    private void handleFileNotFound() {
+        this.statusCode = StatusCode.NOT_FOUND;
+    }
+
+    private void handleNotImplemented() {
+        this.statusCode = StatusCode.NOT_IMPLEMENTED;
     }
 
     private byte[] readFile(File file) {
@@ -52,69 +147,21 @@ public class HTTPResponse {
 
             return bFile;
         } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("File not found", e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
     }
 
-    public void generateResponse() {
-        if (httpRequest == null) {
-            this.statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            response.append(getStatusCodeResponseLine());
-            return;
-        } else if (!httpRequest.isValid()) {
-            this.statusCode = StatusCode.BAD_REQUEST;
-            response.append("HTTP/1.1 ").append(statusCode.getCode()).append(" ").append(statusCode.getDescription()).append("\r\n");
-            return;
-        }
-
-        switch (httpRequest.getType()) {
-            case GET:
-                this.statusCode = StatusCode.OK;
-                String userHome = System.getProperty("user.home");
-                String fullPath = TCPServerMultithreaded.ROOT + httpRequest.getRequestedResource();
-                fullPath = fullPath.replaceFirst("^~", userHome);
-                File requestedFile = new File(fullPath);
-
-                if (requestedFile.exists() && requestedFile.isFile()) {
-                    String fileName = requestedFile.getName().toLowerCase();
-                    setContentTypeHeader(fileName);
-
-                    response.append(getStatusCodeResponseLine());
-
-                    for (Map.Entry<String, String> entry : headers.entrySet()) {
-                        response.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
-                    }
-                    response.append("\r\n");
-
-                    try {
-                        byte[] fileContent = readFile(requestedFile);
-                        response.append(new String(fileContent));
-                    } catch (Exception e) {
-                        this.statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-                        response.append(getStatusCodeResponseLine());
-                    }
-
-                } else {
-                    this.statusCode = StatusCode.NOT_FOUND;
-                    response.append(getStatusCodeResponseLine());
-                }
-                break;
-            default:
-                this.statusCode = StatusCode.NOT_IMPLEMENTED;
-                response.append(getStatusCodeResponseLine());
-        }
-
-    }
-
     private void setContentTypeHeader(String fileName) {
-        if (fileName.endsWith(".html")) {
+        String contentType;
+
+        if (endsWithAny(fileName, HTML_SUFFIXES)) {
             contentType = "text/html";
-        } else if (fileName.endsWith(".bmp") || fileName.endsWith(".gif") || fileName.endsWith(".png") || fileName.endsWith(".jpg")) {
+        } else if (endsWithAny(fileName, IMAGE_SUFFIXES)) {
             contentType = "image";
-        } else if (fileName.endsWith(".ico")) {
+        } else if (endsWithAny(fileName, ICON_SUFFIXES)) {
             contentType = "icon";
         } else {
             contentType = "application/octet-stream";
@@ -124,17 +171,19 @@ public class HTTPResponse {
     }
 
     public StringBuilder getStatusCodeResponseLine() {
-        StringBuilder statusCodeResponseLine = new StringBuilder("HTTP/1.1 ");
-        statusCodeResponseLine.append(statusCode.getCode()).append(" ").append(statusCode.getDescription()).append("\r\n");
-
-        return statusCodeResponseLine;
+        return new StringBuilder("HTTP/1.1 ").append(statusCode.getCode()).append(" ").append(statusCode.getDescription()).append("\r\n");
     }
 
     public StringBuilder getResponse() {
         return response;
     }
 
-    public void setStatusCode(StatusCode statusCode) {
-        this.statusCode = statusCode;
+    private static boolean endsWithAny(String value, String[] suffixes) {
+        for (String suffix : suffixes) {
+            if (value.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -12,7 +12,6 @@ class ThreadRunnable implements Runnable {
     private final String clientIP;
     private final String clientPort;
     static volatile boolean serverRunning = true;
-    private HTTPRequest httpRequest;
     private HTTPResponse httpResponse;
 
     ThreadRunnable(Socket clientSocket) {
@@ -21,12 +20,22 @@ class ThreadRunnable implements Runnable {
         this.clientPort = Integer.toString(clientSocket.getPort());
     }
 
-    public Socket getClientSocket() {
-        return this.clientSocket;
-    }
-
     @Override
     public void run() {
+        try {
+            handleClientRequest();
+        } catch (SocketException e) {
+            handleSocketException(e);
+        } catch (IOException e) {
+            handleIOException(e);
+        } catch (Exception e) {
+            handleOtherException(e);
+        } finally {
+            closeSocket();
+        }
+    }
+
+    private void handleClientRequest() throws IOException {
         try (
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream())
@@ -38,27 +47,65 @@ class ThreadRunnable implements Runnable {
                 clientRequestBuilder.append(line).append("\r\n");
 
                 if (line.isEmpty()) {
-                    String clientRequest = clientRequestBuilder.toString();
-                    try {
-                        System.out.println(clientRequest);
-                        this.httpRequest = new HTTPRequest(clientRequest);
-                        this.httpResponse = new HTTPResponse(this.httpRequest);
-                    } catch (Exception e) {
-                        this.httpResponse = new HTTPResponse(null);
-                    } finally {
-                        sendHttpResponseToClient(this.httpResponse, outToClient);
-                        outToClient.flush();
-                        outToClient.close();
-                        System.out.println(this.httpResponse.getResponse());
-                    }
-
+                    processClientRequest(clientRequestBuilder.toString(), outToClient);
                     clientRequestBuilder.setLength(0);
                 }
             }
+        }
+    }
+
+    private void processClientRequest(String clientRequest, DataOutputStream outToClient) throws IOException {
+        System.out.println(clientRequest);
+        HTTPRequest httpRequest = new HTTPRequest(clientRequest);
+        this.httpResponse = new HTTPResponse(httpRequest);
+        System.out.println(this.httpResponse.getResponse());
+        sendHttpResponseToClient(this.httpResponse, outToClient);
+        outToClient.flush();
+        outToClient.close();
+    }
+
+    private void handleSocketException(SocketException e) {
+        String clientEndpoint = getClientEndpoint();
+        System.err.println("SocketException: " + clientEndpoint + " - " + e.getMessage());
+    }
+
+    private void handleIOException(IOException e) {
+        String clientEndpoint = getClientEndpoint();
+        System.err.println("IOException: " + clientEndpoint + " - " + e.getMessage());
+        handleResponseError();
+    }
+
+    private void handleOtherException(Exception e) {
+        String clientEndpoint = getClientEndpoint();
+        System.err.println(clientEndpoint + " - " + e.getMessage());
+        handleResponseError();
+    }
+
+    private void handleResponseError() {
+        this.httpResponse = new HTTPResponse(null);
+        try {
+            sendHttpResponseToClient(this.httpResponse, new DataOutputStream(clientSocket.getOutputStream()));
+        } catch (IOException ex) {
+            String clientEndpoint = getClientEndpoint();
+            System.err.println(clientEndpoint + " - " + ex.getMessage());
+        }
+    }
+
+    private void closeSocket() {
+        try {
+            if (serverRunning) {
+                String clientEndpoint = getClientEndpoint();
+                System.out.println(clientEndpoint + " disconnected!");
+                clientSocket.close();
+            }
         } catch (IOException e) {
-            String clientEndpoint = this.clientIP + ":" + this.clientPort;
+            String clientEndpoint = getClientEndpoint();
             System.err.println(clientEndpoint + " - " + e.getMessage());
         }
+    }
+
+    private String getClientEndpoint() {
+        return this.clientIP + ":" + this.clientPort;
     }
 
     private void sendHttpResponseToClient(HTTPResponse httpResponse, DataOutputStream outToClient) throws IOException {
@@ -76,17 +123,15 @@ public class TCPServerMultithreaded {
 
 
     public static void main(String[] args) throws Exception {
-        readDataFromConfigFile();
-        ServerSocket serverSocket = new ServerSocket(PORT);
-        ExecutorService executor = Executors.newFixedThreadPool(MAX_THREADS);
-        System.out.println("Server is listening on port " + PORT + "...");
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            ThreadRunnable.serverRunning = false;
-            System.out.println(System.lineSeparator() + "Shutting down server...");
-        }));
+        ExecutorService executor = null;
+        ServerSocket serverSocket = null;
 
         try {
+            readDataFromConfigFile();
+            serverSocket = new ServerSocket(PORT);
+            executor = Executors.newFixedThreadPool(MAX_THREADS);
+            System.out.println("Server is listening on port " + PORT + "...");
+
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println(
@@ -98,9 +143,14 @@ public class TCPServerMultithreaded {
         } catch (Exception e) {
             System.err.println(e.getMessage());
         } finally {
-            executor.shutdown();
-            serverSocket.close();
-            System.out.println("Server is closed");
+            if (executor != null) {
+                System.out.println("Shutting down executor...");
+                executor.shutdown();
+            }
+            if (serverSocket != null) {
+                System.out.println("Closing server socket...");
+                serverSocket.close();
+            }
         }
     }
 
