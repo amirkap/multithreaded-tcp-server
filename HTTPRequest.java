@@ -8,8 +8,9 @@ enum RequestType {
 
 public class HTTPRequest {
     private RequestType type;
-    private String requestedPage;
+    private String requestedResource;
     private boolean isImage;
+    private boolean isValid = true;
     private int contentLength;
     private String referer;
     private String userAgent;
@@ -39,7 +40,7 @@ public class HTTPRequest {
         }
 
         if (!validRequestTypeFound) {
-            throw new IllegalArgumentException("Invalid HTTP request");
+            isValid = false;
         }
     }
 
@@ -53,12 +54,12 @@ public class HTTPRequest {
 
             if (url.contains("?")) {
                 String[] urlParts = url.split("\\?");
-                this.requestedPage = urlParts[0];
+                this.requestedResource = urlParts[0];
                 parseParameters(urlParts[1]);
             } else {
-                this.requestedPage = url;
+                this.requestedResource = url;
             }
-            this.isImage = requestedPage.matches(".*\\.(jpg|bmp|gif)$");
+            this.isImage = requestedResource.matches(".*\\.(jpg|bmp|gif)$");
         }
     }
 
@@ -78,8 +79,8 @@ public class HTTPRequest {
         return type;
     }
 
-    public String getRequestedPage() {
-        return requestedPage;
+    public String getRequestedResource() {
+        return requestedResource;
     }
 
     public boolean isImage() {
@@ -100,5 +101,9 @@ public class HTTPRequest {
 
     public Map<String, String> getParameters() {
         return parameters;
+    }
+
+    public boolean isValid() {
+        return isValid;
     }
 }

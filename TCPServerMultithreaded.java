@@ -13,6 +13,7 @@ class ThreadRunnable implements Runnable {
     private final String clientPort;
     static volatile boolean serverRunning = true;
     private HTTPRequest httpRequest;
+    private HTTPResponse httpResponse;
 
     ThreadRunnable(Socket clientSocket) {
         this.clientSocket = clientSocket;
@@ -34,34 +35,25 @@ class ThreadRunnable implements Runnable {
 
             StringBuilder clientRequestBuilder = new StringBuilder();
             String line;
-            int consecutiveEmptyLines = 0;
 
             while (serverRunning && (line = inFromClient.readLine()) != null) {
                 clientRequestBuilder.append(line).append("\r\n");
 
                 if (line.isEmpty()) {
-                    consecutiveEmptyLines++;
-
-                    if (consecutiveEmptyLines == 1) {
-                        String clientRequest = clientRequestBuilder.toString();
-                        try {
-                            System.out.println(clientRequest);
-                            this.httpRequest = new HTTPRequest(clientRequest);
-                            System.out.println(this.httpRequest);
-                        } catch (IllegalArgumentException e) {
-                            outToClient.writeBytes("HTTP/1.1 400 Bad Request" + System.lineSeparator());
-                            outToClient.writeBytes("Content-Type: text/html" + System.lineSeparator());
-                            outToClient.writeBytes("Content-Length: 0" + System.lineSeparator());
-                            outToClient.writeBytes(System.lineSeparator());
-                            outToClient.writeBytes(System.lineSeparator());
-                            continue;
-                        }
-
-                        clientRequestBuilder.setLength(0);
-                        consecutiveEmptyLines = 0;
+                    String clientRequest = clientRequestBuilder.toString();
+                    try {
+                        System.out.println(clientRequest);
+                        this.httpRequest = new HTTPRequest(clientRequest);
+                        System.out.println(this.httpRequest);
+                        this.httpResponse = new HTTPResponse(this.httpRequest);
+                        System.out.println(this.httpResponse.getResponse());
+                    } catch (Exception e) {
+                        this.httpResponse = new HTTPResponse(null);
+                        httpResponse.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR);
+                        System.err.println(httpResponse.getStatusCodeResponseLine());
                     }
-                } else {
-                    consecutiveEmptyLines = 0;
+
+                    clientRequestBuilder.setLength(0);
                 }
             }
 
