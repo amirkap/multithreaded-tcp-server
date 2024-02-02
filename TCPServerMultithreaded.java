@@ -46,6 +46,7 @@ class ThreadRunnable implements Runnable {
                         this.httpRequest = new HTTPRequest(clientRequest);
                         System.out.println(this.httpRequest);
                         this.httpResponse = new HTTPResponse(this.httpRequest);
+                        sendHttpResponseToClient(this.httpResponse, outToClient);
                         System.out.println(this.httpResponse.getResponse());
                     } catch (Exception e) {
                         this.httpResponse = new HTTPResponse(null);
@@ -71,6 +72,10 @@ class ThreadRunnable implements Runnable {
                 System.err.println(e.getMessage());
             }
         }
+    }
+
+    private void sendHttpResponseToClient(HTTPResponse httpResponse, DataOutputStream outToClient) throws IOException {
+        outToClient.writeBytes(httpResponse.getResponse().toString());
     }
 }
 
