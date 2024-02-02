@@ -4,15 +4,19 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
 
-class ChatRunnable implements Runnable {
-    static List<ChatRunnable> connectedClients = new ArrayList<>();
+
+class ThreadRunnable implements Runnable {
+    static List<ThreadRunnable> connectedClients = new ArrayList<>();
     private Socket clientSocket;
     private String clientIP;
     private String clientPort;
     static volatile boolean serverRunning = true;
 
-    ChatRunnable(Socket clientSocket) {
+    ThreadRunnable(Socket clientSocket) {
         this.clientSocket = clientSocket;
         this.clientIP = clientSocket.getInetAddress().getHostAddress();
         this.clientPort = Integer.toString(clientSocket.getPort());
@@ -22,11 +26,11 @@ class ChatRunnable implements Runnable {
         return this.clientSocket;
     }
 
-    private static synchronized void addUser(ChatRunnable client) {
+    private static synchronized void addUser(ThreadRunnable client) {
         connectedClients.add(client);
     }
 
-    private static synchronized void removeUser(ChatRunnable client) {
+    private static synchronized void removeUser(ThreadRunnable client) {
         connectedClients.remove(client);
     }
 
@@ -67,7 +71,6 @@ class ChatRunnable implements Runnable {
             System.err.println(clientEndpoint + " - " + e.getMessage());
         } finally {
             try {
-                // If the server is shutting down, shutdown hook will close the socket
                 if (serverRunning) {
                     String clientEndpoint = this.clientIP + ":" + this.clientPort;
                     System.out.println(clientEndpoint + " disconnected!");
@@ -83,7 +86,7 @@ class ChatRunnable implements Runnable {
     }
 
     private void sendToOtherClients(String message) {
-        for (ChatRunnable client : connectedClients) {
+        for (ThreadRunnable client : connectedClients) {
             if (client != this) {
                 try {
                     DataOutputStream outToOtherClient = new DataOutputStream(client.clientSocket.getOutputStream());
@@ -99,16 +102,21 @@ class ChatRunnable implements Runnable {
 
 public class TCPServerMultithreaded {
 
-    private static final int PORT = 9922;
+    private static int PORT;
+    private static final String CONFIG_FILE_PATH = "./config.ini";
+    public static String ROOT;
+    public static String DEFAULT_PAGE;
+    public static int MAX_THREADS;
+
 
     public static void main(String[] args) throws Exception {
+        readDataFromConfigFile();
         ServerSocket serverSocket = new ServerSocket(PORT);
-        ExecutorService executor = Executors.newCachedThreadPool(); // Dynamic number of threads
+        ExecutorService executor = Executors.newFixedThreadPool(MAX_THREADS);
         System.out.println("Server is listening on port " + PORT + "...");
 
-        // This thread will be executed when the server is shutting down
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            ChatRunnable.serverRunning = false;
+            ThreadRunnable.serverRunning = false;
             System.out.println(System.getProperty("line.separator") + "Shutting down server...");
             notifyClientsAboutShutdown();
         }));
@@ -119,7 +127,7 @@ public class TCPServerMultithreaded {
                 System.out.println(
                         clientSocket.getInetAddress().getHostAddress() + ':' + clientSocket.getPort()
                                 + " connected!");
-                Runnable worker = new ChatRunnable(clientSocket);
+                Runnable worker = new ThreadRunnable(clientSocket);
 
                 executor.execute(worker);
             }
@@ -134,7 +142,7 @@ public class TCPServerMultithreaded {
 
     private static void notifyClientsAboutShutdown() {
         String shutdownMessage = "Server was shut down, you are no longer connected.";
-        for (ChatRunnable clientThread : ChatRunnable.connectedClients) {
+        for (ThreadRunnable clientThread : ThreadRunnable.connectedClients) {
             try {
                 Socket clientSocket = clientThread.getClientSocket();
                 DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream());
@@ -146,5 +154,20 @@ public class TCPServerMultithreaded {
                 System.err.println(e.getMessage());
             }
         }
+    }
+
+    private static void readDataFromConfigFile() {
+        Properties properties = new Properties();
+
+        try {
+            properties.load(new FileInputStream(CONFIG_FILE_PATH));
+            PORT = Integer.parseInt(properties.getProperty("port"));
+            ROOT = properties.getProperty("root");
+            DEFAULT_PAGE = properties.getProperty("defaultPage");
+            MAX_THREADS = Integer.parseInt(properties.getProperty("maxThreads"));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load configuration from " + CONFIG_FILE_PATH, e);
+        }
+
     }
 }
