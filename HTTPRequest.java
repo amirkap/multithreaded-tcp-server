@@ -22,9 +22,12 @@ public class HTTPRequest {
 
     private void parseRequest(String httpRequest) {
         String[] lines = httpRequest.split("\r\n");
+        boolean validRequestTypeFound = false;
+
         for (String line : lines) {
             if (Arrays.stream(RequestType.values())
                     .anyMatch(requestType -> line.startsWith(requestType.name()))) {
+                validRequestTypeFound = true;
                 parseRequestLine(line);
             } else if (line.startsWith("Content-Length:")) {
                 this.contentLength = Integer.parseInt(line.substring(15).trim());
@@ -33,6 +36,10 @@ public class HTTPRequest {
             } else if (line.startsWith("User-Agent:")) {
                 this.userAgent = line.substring(11).trim();
             }
+        }
+
+        if (!validRequestTypeFound) {
+            throw new IllegalArgumentException("Invalid HTTP request");
         }
     }
 
