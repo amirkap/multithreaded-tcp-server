@@ -53,17 +53,13 @@ public class HTTPRequest {
 
             url = url.replaceAll("/\\.\\./", "/");
 
+            this.requestedResource = (url.contains("?"))
+                    ? (Objects.equals(url.split("\\?")[0], "/") ? TCPServerMultithreaded.DEFAULT_PAGE : url.split("\\?")[0].substring(1))
+                    : (Objects.equals(url, "/") ? TCPServerMultithreaded.DEFAULT_PAGE : url.substring(1));
             if (url.contains("?")) {
-                String[] urlParts = url.split("\\?");
-                if (Objects.equals(urlParts[0], "/")) {
-                    this.requestedResource = TCPServerMultithreaded.DEFAULT_PAGE;
-                } else {
-                    this.requestedResource = urlParts[0].substring(1);
-                }
-                parseParameters(urlParts[1]);
-            } else {
-                this.requestedResource = TCPServerMultithreaded.DEFAULT_PAGE;
+                parseParameters(url.split("\\?")[1]);
             }
+
             this.isImage = requestedResource.matches(".*\\.(jpg|bmp|gif)$");
         }
     }
