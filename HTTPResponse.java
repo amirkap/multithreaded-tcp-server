@@ -29,7 +29,7 @@ public class HTTPResponse {
     private StatusCode statusCode;
     private final HTTPRequest httpRequest;
 
-    private StringBuilder response;
+    private StringBuilder response = new StringBuilder();
 
     private String contentType;
 
@@ -60,16 +60,23 @@ public class HTTPResponse {
     }
 
     public void generateResponse() {
-        if (httpRequest.isValid()) {
-        } else {
+        if (httpRequest == null) {
+            this.statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.append(getStatusCodeResponseLine());
+            return;
+        } else if (!httpRequest.isValid()) {
             this.statusCode = StatusCode.BAD_REQUEST;
             response.append("HTTP/1.1 ").append(statusCode.getCode()).append(" ").append(statusCode.getDescription()).append("\r\n");
             return;
         }
+
         switch (httpRequest.getType()) {
             case GET:
                 this.statusCode = StatusCode.OK;
-                File requestedFile = new File(TCPServerMultithreaded.ROOT + httpRequest.getRequestedResource());
+                String userHome = System.getProperty("user.home");
+                String fullPath = TCPServerMultithreaded.ROOT + httpRequest.getRequestedResource();
+                fullPath = fullPath.replaceFirst("^~", userHome);
+                File requestedFile = new File(fullPath);
 
                 if (requestedFile.exists() && requestedFile.isFile()) {
                     String fileName = requestedFile.getName().toLowerCase();
@@ -82,8 +89,13 @@ public class HTTPResponse {
                     }
                     response.append("\r\n");
 
-                    byte[] fileContent = readFile(requestedFile);
-                    response.append(new String(fileContent));
+                    try {
+                        byte[] fileContent = readFile(requestedFile);
+                        response.append(new String(fileContent));
+                    } catch (Exception e) {
+                        this.statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                        response.append(getStatusCodeResponseLine());
+                    }
 
                 } else {
                     this.statusCode = StatusCode.NOT_FOUND;
@@ -112,7 +124,7 @@ public class HTTPResponse {
     }
 
     public StringBuilder getStatusCodeResponseLine() {
-        StringBuilder statusCodeResponseLine = new StringBuilder("HTTP/1.1");
+        StringBuilder statusCodeResponseLine = new StringBuilder("HTTP/1.1 ");
         statusCodeResponseLine.append(statusCode.getCode()).append(" ").append(statusCode.getDescription()).append("\r\n");
 
         return statusCodeResponseLine;

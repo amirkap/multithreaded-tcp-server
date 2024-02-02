@@ -1,6 +1,7 @@
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 enum RequestType {
     GET, POST, HEAD, TRACE
@@ -54,10 +55,14 @@ public class HTTPRequest {
 
             if (url.contains("?")) {
                 String[] urlParts = url.split("\\?");
-                this.requestedResource = urlParts[0];
+                if (Objects.equals(urlParts[0], "/")) {
+                    this.requestedResource = TCPServerMultithreaded.DEFAULT_PAGE;
+                } else {
+                    this.requestedResource = urlParts[0].substring(1);
+                }
                 parseParameters(urlParts[1]);
             } else {
-                this.requestedResource = url;
+                this.requestedResource = TCPServerMultithreaded.DEFAULT_PAGE;
             }
             this.isImage = requestedResource.matches(".*\\.(jpg|bmp|gif)$");
         }

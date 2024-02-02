@@ -31,8 +31,6 @@ class ThreadRunnable implements Runnable {
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream())
         ) {
-            outToClient.writeBytes("Welcome to our http server! " + System.lineSeparator());
-
             StringBuilder clientRequestBuilder = new StringBuilder();
             String line;
 
@@ -44,33 +42,22 @@ class ThreadRunnable implements Runnable {
                     try {
                         System.out.println(clientRequest);
                         this.httpRequest = new HTTPRequest(clientRequest);
-                        System.out.println(this.httpRequest);
                         this.httpResponse = new HTTPResponse(this.httpRequest);
-                        sendHttpResponseToClient(this.httpResponse, outToClient);
-                        System.out.println(this.httpResponse.getResponse());
                     } catch (Exception e) {
                         this.httpResponse = new HTTPResponse(null);
-                        httpResponse.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR);
-                        System.err.println(httpResponse.getStatusCodeResponseLine());
+                    } finally {
+                        sendHttpResponseToClient(this.httpResponse, outToClient);
+                        outToClient.flush();
+                        outToClient.close();
+                        System.out.println(this.httpResponse.getResponse());
                     }
 
                     clientRequestBuilder.setLength(0);
                 }
             }
-
         } catch (IOException e) {
             String clientEndpoint = this.clientIP + ":" + this.clientPort;
             System.err.println(clientEndpoint + " - " + e.getMessage());
-        } finally {
-            try {
-                if (serverRunning) {
-                    String clientEndpoint = this.clientIP + ":" + this.clientPort;
-                    System.out.println(clientEndpoint + " disconnected!");
-                    clientSocket.close();
-                }
-            } catch (IOException e) {
-                System.err.println(e.getMessage());
-            }
         }
     }
 
@@ -100,7 +87,7 @@ public class TCPServerMultithreaded {
         }));
 
         try {
-            while (!serverSocket.isClosed()) {
+            while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println(
                         clientSocket.getInetAddress().getHostAddress() + ':' + clientSocket.getPort()
