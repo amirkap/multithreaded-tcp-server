@@ -44,8 +44,8 @@ class ThreadRunnable implements Runnable {
 
                     if (consecutiveEmptyLines == 1) {
                         String clientRequest = clientRequestBuilder.toString();
-                        System.out.println(clientRequest);
                         try {
+                            System.out.println(clientRequest);
                             this.httpRequest = new HTTPRequest(clientRequest);
                             System.out.println(this.httpRequest);
                         } catch (IllegalArgumentException e) {
