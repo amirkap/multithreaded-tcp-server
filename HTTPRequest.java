@@ -48,6 +48,9 @@ public class HTTPRequest {
         if (parts.length > 1) {
             this.type = RequestType.valueOf(parts[0]);
             String url = parts[1];
+
+            url = url.replaceAll("/\\.\\./", "/");
+
             if (url.contains("?")) {
                 String[] urlParts = url.split("\\?");
                 this.requestedPage = urlParts[0];
