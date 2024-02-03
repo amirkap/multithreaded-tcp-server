@@ -46,7 +46,9 @@ class ThreadRunnable implements Runnable {
             while (serverRunning && (line = inFromClient.readLine()) != null) {
                 clientRequestBuilder.append(line).append("\r\n");
 
-                if (line.isEmpty()) {
+                if (line.isEmpty()) { // this is the 2nd \r\n, end of headers
+                    // problem - the body of the requst (if there is one) is not read! the body comes after /r/n/r/n (after the headers)
+                    // The body is present only if headers "Content-Length" or "Transfer-Encoding:" are present
                     processClientRequest(clientRequestBuilder.toString(), outToClient);
                     clientRequestBuilder.setLength(0);
                 }

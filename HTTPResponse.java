@@ -1,11 +1,10 @@
-import javax.swing.text.html.HTML;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
+
 
 enum StatusCode {
     OK(200, "OK"), NOT_FOUND(404, "Not Found"), NOT_IMPLEMENTED(501, "Not Implemented"), BAD_REQUEST(400, "Bad Request"), INTERNAL_SERVER_ERROR(500, "Internal Server Error");
@@ -58,10 +57,13 @@ public class HTTPResponse {
             handleInternalServerError();
         } else if (!httpRequest.isValid()) {
             handleBadRequest();
-        } else if (httpRequest.getType() == RequestType.GET) {
+        } else { 
             switch (httpRequest.getType()) {
                 case GET:
                     handleGetRequest();
+                    break;
+                case POST:
+                    handlePostRequest();
                     break;
                 case HEAD:
                     handleHeadRequest();
@@ -69,10 +71,11 @@ public class HTTPResponse {
                 case TRACE:
                     handleTraceRequest();
                     break;
+                default:
+                    handleNotImplemented();    
+                    break;
             }
-        } else {
-            handleNotImplemented();
-        }
+        } 
 
         if (this.statusCode != StatusCode.OK) {
             response.append(getStatusCodeResponseLine());
@@ -85,6 +88,14 @@ public class HTTPResponse {
 
     private void handleBadRequest() {
         this.statusCode = StatusCode.BAD_REQUEST;
+    }
+
+    private void handlePostRequest() {
+        this.statusCode = StatusCode.OK;
+        
+        // debug line
+        System.out.println("POST request received:\n" + httpRequest.getParameters());
+        
     }
 
     private void handleGetRequest() {
@@ -122,10 +133,12 @@ public class HTTPResponse {
 
     private void handleHeadRequest() {
         this.statusCode = StatusCode.OK;
+        // todo: implement
     }
 
     private void handleTraceRequest() {
         this.statusCode = StatusCode.OK;
+        // todo: implement
     }
 
     private void handleFileNotFound() {
@@ -145,13 +158,13 @@ public class HTTPResponse {
                 fileInputStream.read(bFile, 0, bFile.length);
             }
 
+            fileInputStream.close();
             return bFile;
         } catch (FileNotFoundException e) {
             throw new RuntimeException("File not found", e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
     }
 
     private void setContentTypeHeader(String fileName) {
