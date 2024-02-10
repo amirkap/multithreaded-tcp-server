@@ -13,9 +13,6 @@ public class HTTPRequest {
     private String requestedResource;
     private boolean isImage;
     private boolean isValid = true;
-    // private int contentLength;
-    // private String referer;
-    // private String userAgent;
     private Map<String, String> parameters = new HashMap<>();
     private Map<String, String> headers = new HashMap<>();
     private String body = "";
@@ -26,59 +23,66 @@ public class HTTPRequest {
     }
 
     private void parseRequest(String httpRequest) {
-        String[] parts = httpRequest.split("\r\n\r\n", 2); // Split headers and body
-        String[] headerLines = parts[0].split("\r\n");
-        boolean validRequestTypeFound = false;
+        String[] parts = httpRequest.split("\r\n\r\n", 2);
+        String[] requestLines = parts[0].split("\r\n");
+        String requestLine = requestLines[0];
+        String[] headerLines = Arrays.copyOfRange(requestLines, 1, requestLines.length);
 
-        // Process headers
-        for (String line : headerLines) {
-            if (Arrays.stream(RequestType.values()) // request can be valid even if request line is not the first line (?)
-                    .anyMatch(requestType -> line.startsWith(requestType.name()))) {
-                validRequestTypeFound = true;
-                parseRequestLine(line);
-            } else {
-                String[] headerParts = line.split(": ", 2);
-                if (headerParts.length == 2) {
-                    this.headers.put(headerParts[0], headerParts[1]);
-                }
-            }
-        }
-
-        if (!validRequestTypeFound) {
+        if (!validateAndParseRequestLine(requestLine)) {
             isValid = false;
             return;
         }
+        ;
+        parseHeaders(headerLines);
 
-        // Parse body if present and Content-Length is set
         if (parts.length > 1 && headers.containsKey("Content-Length")) {
-             // this.contentLength = Integer.parseInt(headers.get("Content-Length"));
             this.body = parts[1];
         }
-            // Check Content-Type and parse accordingly
-            String contentType = headers.get("Content-Type");
-            if (contentType != null) {
-                if (contentType.contains("application/x-www-form-urlencoded")) {
-                    parseParameters(this.body);
-                }
+        String contentType = headers.get("Content-Type");
+        if (contentType != null) {
+            if (contentType.contains("application/x-www-form-urlencoded")) {
+                parseParameters(this.body);
             }
+        }
     }
 
-    private void parseRequestLine(String line) {
-        String[] parts = line.split(" ");
-        if (parts.length > 1) {
+    private boolean validateAndParseRequestLine(String requestLine) {
+        String[] parts = requestLine.split(" ");
+
+        if (parts.length != 3) {
+            return false;
+        }
+
+        try {
             this.type = RequestType.valueOf(parts[0]);
-            String url = parts[1];
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
 
-            url = url.replaceAll("/\\.\\./", "/");
+        String url = parts[1];
+        url = url.replaceAll("/\\.\\./", "/");
+        this.requestedResource = (url.contains("?"))
+                ? (Objects.equals(url.split("\\?")[0], "/") ? TCPServerMultithreaded.DEFAULT_PAGE : url.split("\\?")[0].substring(1))
+                : (Objects.equals(url, "/") ? TCPServerMultithreaded.DEFAULT_PAGE : url.substring(1));
+        if (url.contains("?")) {
+            parseParameters(url.split("\\?")[1]);
+        }
 
-            this.requestedResource = (url.contains("?"))
-                    ? (Objects.equals(url.split("\\?")[0], "/") ? TCPServerMultithreaded.DEFAULT_PAGE : url.split("\\?")[0].substring(1))
-                    : (Objects.equals(url, "/") ? TCPServerMultithreaded.DEFAULT_PAGE : url.substring(1));
-            if (url.contains("?")) {
-                parseParameters(url.split("\\?")[1]);
+        this.isImage = requestedResource.matches(".*\\.(jpg|bmp|gif)$");
+
+        if (!"HTTP/1.0".equals(parts[2]) && !"HTTP/1.1".equals(parts[2])) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void parseHeaders(String[] lines) {
+        for (String line : lines) {
+            String[] headerParts = line.split(": ", 2);
+            if (headerParts.length == 2) {
+                this.headers.put(headerParts[0], headerParts[1]);
             }
-
-            this.isImage = requestedResource.matches(".*\\.(jpg|bmp|gif)$");
         }
     }
 
@@ -101,6 +105,7 @@ public class HTTPRequest {
     public String getRequestString() {
         return requestString;
     }
+
     public String getRequestedResource() {
         return requestedResource;
     }
@@ -108,18 +113,6 @@ public class HTTPRequest {
     public boolean isImage() {
         return isImage;
     }
-
-    // public int getContentLength() {
-    //     return contentLength;
-    // }
-
-    // public String getReferer() {
-    //     return referer;
-    // }
-
-    // public String getUserAgent() {
-    //     return userAgent;
-    // }
 
     public Map<String, String> getParameters() {
         return parameters;

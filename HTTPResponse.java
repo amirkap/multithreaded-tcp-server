@@ -57,7 +57,7 @@ public class HTTPResponse {
             handleInternalServerError();
         } else if (!httpRequest.isValid()) {
             handleBadRequest();
-        } else { 
+        } else {
             switch (httpRequest.getType()) {
                 case GET:
                     handleGetRequest();
@@ -72,10 +72,10 @@ public class HTTPResponse {
                     handleTraceRequest();
                     break;
                 default:
-                    handleNotImplemented();    
+                    handleNotImplemented();
                     break;
             }
-        } 
+        }
 
         if (this.statusCode != StatusCode.OK) {
             response.append(getStatusCodeResponseLine());
@@ -92,26 +92,42 @@ public class HTTPResponse {
 
     private void handlePostRequest() {
         this.statusCode = StatusCode.OK;
-        
-        // debug line
-        System.out.println("POST request received:\n" + httpRequest.getParameters());
-        
     }
 
     private void handleGetRequest() {
-        String userHome = System.getProperty("user.home");
-        String fullPath = TCPServerMultithreaded.ROOT + httpRequest.getRequestedResource();
-        fullPath = fullPath.replaceFirst("^~", userHome);
-        File requestedFile = new File(fullPath);
+        File requestedFile = getFile();
 
         if (requestedFile.exists() && requestedFile.isFile()) {
-            handleFileExists(requestedFile);
+            handleFileExists(requestedFile, true);
         } else {
             handleFileNotFound();
         }
     }
 
-    private void handleFileExists(File requestedFile) {
+    private void handleHeadRequest() {
+        File requestedFile = getFile();
+
+        if (requestedFile.exists() && requestedFile.isFile()) {
+            handleFileExists(requestedFile, false);
+        } else {
+            handleFileNotFound();
+        }
+    }
+
+    private void handleTraceRequest() {
+        this.statusCode = StatusCode.OK;
+        // todo: implement
+    }
+
+    private File getFile() {
+        String userHome = System.getProperty("user.home");
+        String fullPath = TCPServerMultithreaded.ROOT + httpRequest.getRequestedResource();
+        fullPath = fullPath.replaceFirst("^~", userHome);
+        File requestedFile = new File(fullPath);
+        return requestedFile;
+    }
+
+    private void handleFileExists(File requestedFile, boolean shouldSendContent) {
         String fileName = requestedFile.getName().toLowerCase();
         setContentTypeHeader(fileName);
 
@@ -123,22 +139,15 @@ public class HTTPResponse {
         }
         response.append("\r\n");
 
-        try {
-            byte[] fileContent = readFile(requestedFile);
-            response.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if (shouldSendContent) {
+            try {
+                byte[] fileContent = readFile(requestedFile);
+                response.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
-    }
 
-    private void handleHeadRequest() {
-        this.statusCode = StatusCode.OK;
-        // todo: implement
-    }
-
-    private void handleTraceRequest() {
-        this.statusCode = StatusCode.OK;
-        // todo: implement
     }
 
     private void handleFileNotFound() {
