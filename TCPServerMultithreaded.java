@@ -170,6 +170,7 @@ public class TCPServerMultithreaded {
                 System.out.println("Closing server socket...");
                 serverSocket.close();
             }
+            System.out.println("Shutting down...");
         }
     }
 
