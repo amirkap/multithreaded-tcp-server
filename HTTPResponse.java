@@ -295,7 +295,7 @@ public class HTTPResponse {
         boolean bodyTagFound;
         bodyTagFound = true;
         StringBuilder paramsBuilder = new StringBuilder();
-        paramsBuilder.append("<table border=\"1\">\n<tr>\n<th>Key</th>\n<th>Value</th>\n</tr>\n");
+        paramsBuilder.append("<table border=\"1\">\n<tr>\n<th>Parameter Name</th>\n<th>Parameter Value</th>\n</tr>\n");
         for (Map.Entry<String, String> entry : params.entrySet()) {
             paramsBuilder.append("<tr><td>")
                     .append(entry.getKey())
