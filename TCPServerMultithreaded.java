@@ -52,20 +52,24 @@ class ThreadRunnable implements Runnable {
 
                 if (line.isEmpty()) {
                     if (isThereABody) {
-                        int contentLength = Integer.parseInt(clientRequestBuilder.toString().split("Content-Length: ")[1].split("\r\n")[0]);
-                        char[] body = new char[contentLength];
-                        try {
-                            inFromClient.read(body, 0, contentLength);
-                        } catch (IOException e) {
-                            System.err.println("Error reading body: " + e.getMessage());
-                        }
-                        clientRequestBuilder.append(body);
+                        appendBodyToRequest(clientRequestBuilder, inFromClient);
                     }
                     processClientRequest(clientRequestBuilder.toString(), outToClient);
                     clientRequestBuilder.setLength(0);
                 }
             }
         }
+    }
+
+    private static void appendBodyToRequest(StringBuilder clientRequestBuilder, BufferedReader inFromClient) {
+        int contentLength = Integer.parseInt(clientRequestBuilder.toString().split("Content-Length: ")[1].split("\r\n")[0]);
+        char[] body = new char[contentLength];
+        try {
+            inFromClient.read(body, 0, contentLength);
+        } catch (IOException e) {
+            System.err.println("Error reading body: " + e.getMessage());
+        }
+        clientRequestBuilder.append(body);
     }
 
     private void processClientRequest(String clientRequest, DataOutputStream outToClient) throws IOException {
