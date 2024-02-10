@@ -48,12 +48,14 @@ public class HTTPRequest {
 
         if (parts.length != 3) {
             this.isValid = false;
+            return;
         }
 
         try {
             this.type = RequestType.valueOf(parts[0]);
         } catch (IllegalArgumentException e) {
             this.isImplemented = false;
+            return;
         }
 
         String url = parts[1];
@@ -69,6 +71,7 @@ public class HTTPRequest {
 
         if (!"HTTP/1.0".equals(parts[2]) && !"HTTP/1.1".equals(parts[2])) {
             this.isValid = false;
+            return;
         }
     }
 

@@ -243,8 +243,12 @@ public class HTTPResponse {
     }
 
     private boolean shouldUseChunkedEncoding() {
-        String chunkedHeader = httpRequest.getHeaders().get("chunked");
-        return "yes".equalsIgnoreCase(chunkedHeader);
+        if (httpRequest != null) {
+            String chunkedHeader = httpRequest.getHeaders().get("chunked");
+            return "yes".equalsIgnoreCase(chunkedHeader);
+        }
+
+        return false;
     }
 
     private void chunkBody() {
