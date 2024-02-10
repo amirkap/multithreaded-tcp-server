@@ -33,10 +33,11 @@ public class HTTPResponse {
     private final StringBuilder responseLine = new StringBuilder();
     Map<String, String> headers = new HashMap<>();
     private final StringBuilder headersString = new StringBuilder();
-    private final StringBuilder body = new StringBuilder();
+    private StringBuilder body = new StringBuilder();
     private static final String[] HTML_SUFFIXES = {".html"};
     private static final String[] IMAGE_SUFFIXES = {".bmp", ".gif", ".png", ".jpg"};
     private static final String[] ICON_SUFFIXES = {".ico"};
+    private static final int CHUNK_SIZE = 1000;
 
 
     public HTTPResponse(HTTPRequest httpRequest) {
@@ -142,6 +143,7 @@ public class HTTPResponse {
             try {
                 byte[] fileContent = readFile(requestedFile);
                 body.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
+                headers.put("Content-Length", String.valueOf(fileContent.length));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -208,7 +210,42 @@ public class HTTPResponse {
 
     public void setResponse() {
         setHeadersString();
+        manipulateBodyBasedOnChunkHeader();
+
         response.append(responseLine).append("\r\n").append(headersString).append("\r\n").append(body);
+    }
+
+    private void manipulateBodyBasedOnChunkHeader() {
+        if (shouldUseChunkedEncoding()) {
+            headers.put("Transfer-Encoding", "chunked");
+            chunkBody();
+        }
+    }
+
+    private boolean shouldUseChunkedEncoding() {
+        String chunkedHeader = httpRequest.getHeaders().get("chunked");
+        return "yes".equalsIgnoreCase(chunkedHeader);
+    }
+
+    private void chunkBody() {
+        int chunkSize = 1000;
+        int index = 0;
+
+        StringBuilder chunkedBody = new StringBuilder();
+
+        while (index < body.length()) {
+            int endIndex = Math.min(index + chunkSize, body.length());
+            String chunk = body.substring(index, endIndex);
+
+            chunkedBody.append(Integer.toHexString(chunk.length())).append("\r\n");
+            chunkedBody.append(chunk).append("\r\n");
+
+            index += chunkSize;
+        }
+
+        chunkedBody.append("0\r\n\r\n");
+
+        body = new StringBuilder(chunkedBody.toString());
     }
 
     public StringBuilder getResponse() {

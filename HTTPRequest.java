@@ -121,4 +121,8 @@ public class HTTPRequest {
     public boolean isValid() {
         return isValid;
     }
+
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
 }
