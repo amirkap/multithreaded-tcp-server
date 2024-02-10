@@ -1,56 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Computer Networks 2023: Exercise 1</title>
-  <style>
-    body {
-      text-align: center;
-    }
-    h1 {
-      color: blue;
-    }
-    h2 {
-      color: red;
-    }
-    img {
-      margin: 15px;
-    }
-    hr {
-      margin: 20px;
-    }
-    form {
-      display: inline-block;
-      text-align: left;
-    }
-    label {
-      display: block;
-      margin-top: 10px;
-    }
-    input, textarea {
-      margin-bottom: 10px;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computer Networks 2023: Exercise 1</title>
+    <style>
+        body {
+            text-align: center;
+        }
 
-  </style>
+        h1 {
+            color: blue;
+        }
+
+        h2 {
+            color: red;
+        }
+
+        img {
+            margin: 15px;
+        }
+
+        hr {
+            margin: 20px;
+        }
+
+        form {
+            display: inline-block;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input, textarea {
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-    <marquee behavior="alternate" direction="right">
-      <h1>Computer Networks 2023: Exercise 1</h1>
-  </marquee>
-  <h2>Tom Shlaim and Amir Kaplan</h2>
-  
-  <div>
+<marquee behavior="alternate" direction="right">
+    <h1>Computer Networks 2023: Exercise 1</h1>
+</marquee>
+<h2>Tom Shlaim and Amir Kaplan</h2>
+
+<div>
     <img src="michael.jpg" alt="Michael">
     <img src="dwight.jpg" alt="Dwight">
-  </div><br>
+</div>
+<br>
 
-  <a href="https://piazza.com/class/lq8bwborc233h1">Course website</a><br><br>
-  <a href="https://www.youtube.com/">Our favorite website</a>
+<a href="https://piazza.com/class/lq8bwborc233h1">Course website</a><br><br>
+<a href="https://www.youtube.com/">Our favorite website</a>
 
-  <hr>
+<hr>
 
-  <form action="/params_info.html" method="POST">
+<form action="/params_info.html" method="POST">
     <label for="sender">Sender:</label>
     <input type="text" id="sender" name="sender" required><br>
 
@@ -63,7 +70,10 @@
     <label for="message">Message:</label>
     <textarea id="message" name="message" rows="6" cols="70" required></textarea><br>
 
+    <label for="incredible">Incredible checkbox:</label>
+    <input type="checkbox" id="incredible" name="incredible" required><br>
+
     <input type="submit" value="Submit">
-  </form>
+</form>
 </body>
 </html>

@@ -9,12 +9,12 @@ enum RequestType {
 
 public class HTTPRequest {
     private RequestType type;
-    private String requestString;
+    private final String requestString;
     private String requestedResource;
     private boolean isImage;
     private boolean isValid = true;
-    private Map<String, String> parameters = new HashMap<>();
-    private Map<String, String> headers = new HashMap<>();
+    private final Map<String, String> parameters = new HashMap<>();
+    private final Map<String, String> headers = new HashMap<>();
     private String body = "";
 
     public HTTPRequest(String httpRequest) {
@@ -124,5 +124,8 @@ public class HTTPRequest {
 
     public Map<String, String> getHeaders() {
         return headers;
+    }
+    public String getBody() {
+        return body;
     }
 }

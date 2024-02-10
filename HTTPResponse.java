@@ -1,7 +1,4 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,6 +36,7 @@ public class HTTPResponse {
     private static final String[] ICON_SUFFIXES = {".ico"};
     private static final int CHUNK_SIZE = 1000;
 
+    private static final String PARAMS_INFO_HTML = "params_info.html";
 
     public HTTPResponse(HTTPRequest httpRequest) {
         this.httpRequest = httpRequest;
@@ -93,6 +91,15 @@ public class HTTPResponse {
 
     private void handlePostRequest() {
         this.statusCode = StatusCode.OK;
+        setResponseLine();
+        String fileName = httpRequest.getRequestedResource().toLowerCase();
+        setContentTypeHeaderBasedOnFileName(fileName);
+
+        if (httpRequest.getRequestedResource().equals(PARAMS_INFO_HTML)) {
+            body.append(embedParamsInHtml(getFullPathOfRequestedResource(), httpRequest.getParameters()));
+        } else {
+            body.append(httpRequest.getBody());
+        }
     }
 
     private void handleGetRequest() {
@@ -124,11 +131,17 @@ public class HTTPResponse {
     }
 
     private File getFile() {
+        String fullPath = getFullPathOfRequestedResource();
+
+        return new File(fullPath);
+    }
+
+    private String getFullPathOfRequestedResource() {
         String userHome = System.getProperty("user.home");
         String fullPath = TCPServerMultithreaded.ROOT + httpRequest.getRequestedResource();
         fullPath = fullPath.replaceFirst("^~", userHome);
-        File requestedFile = new File(fullPath);
-        return requestedFile;
+
+        return fullPath;
     }
 
     private void handleFileExists(File requestedFile, boolean shouldSendContent) {
@@ -228,24 +241,64 @@ public class HTTPResponse {
     }
 
     private void chunkBody() {
-        int chunkSize = 1000;
         int index = 0;
-
         StringBuilder chunkedBody = new StringBuilder();
 
         while (index < body.length()) {
-            int endIndex = Math.min(index + chunkSize, body.length());
+            int endIndex = Math.min(index + CHUNK_SIZE, body.length());
             String chunk = body.substring(index, endIndex);
 
             chunkedBody.append(Integer.toHexString(chunk.length())).append("\r\n");
             chunkedBody.append(chunk).append("\r\n");
 
-            index += chunkSize;
+            index += CHUNK_SIZE;
         }
 
         chunkedBody.append("0\r\n\r\n");
 
         body = new StringBuilder(chunkedBody.toString());
+    }
+
+    private String embedParamsInHtml(String filePath, Map<String, String> params) {
+        StringBuilder htmlContentBuilder = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            boolean bodyTagFound = false;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.contains("</body>")) {
+                    bodyTagFound = isBodyTagFoundLogic(params, htmlContentBuilder);
+                }
+                if (!bodyTagFound) {
+                    htmlContentBuilder.append(line).append("\n");
+                } else {
+                    htmlContentBuilder.append(line).append("\n");
+                    bodyTagFound = false;
+                }
+            }
+
+            return htmlContentBuilder.toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean isBodyTagFoundLogic(Map<String, String> params, StringBuilder htmlContentBuilder) {
+        boolean bodyTagFound;
+        bodyTagFound = true;
+        StringBuilder paramsBuilder = new StringBuilder();
+        paramsBuilder.append("<table border=\"1\">\n<tr>\n<th>Key</th>\n<th>Value</th>\n</tr>\n");
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            paramsBuilder.append("<tr><td>")
+                    .append(entry.getKey())
+                    .append("</td><td>")
+                    .append(entry.getValue())
+                    .append("</td></tr>\n");
+        }
+        paramsBuilder.append("</table>\n");
+        htmlContentBuilder.append(paramsBuilder.toString());
+        return bodyTagFound;
     }
 
     public StringBuilder getResponse() {
