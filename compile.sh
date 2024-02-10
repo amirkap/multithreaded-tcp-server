@@ -1,2 +1,3 @@
 #!/bin/bash
-javac TCPServerMultithreaded.java
+javac HTTPRequest.java HTTPResponse.java TCPServerMultithreaded.java
+
