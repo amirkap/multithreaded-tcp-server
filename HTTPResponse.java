@@ -29,11 +29,11 @@ enum StatusCode {
 public class HTTPResponse {
     private StatusCode statusCode;
     private final HTTPRequest httpRequest;
-
     private final StringBuilder response = new StringBuilder();
-
+    private final StringBuilder responseLine = new StringBuilder();
     Map<String, String> headers = new HashMap<>();
-
+    private final StringBuilder headersString = new StringBuilder();
+    private final StringBuilder body = new StringBuilder();
     private static final String[] HTML_SUFFIXES = {".html"};
     private static final String[] IMAGE_SUFFIXES = {".bmp", ".gif", ".png", ".jpg"};
     private static final String[] ICON_SUFFIXES = {".ico"};
@@ -77,17 +77,17 @@ public class HTTPResponse {
             }
         }
 
-        if (this.statusCode != StatusCode.OK) {
-            response.append(getStatusCodeResponseLine());
-        }
+        setResponse();
     }
 
     private void handleInternalServerError() {
         this.statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+        setResponseLine();
     }
 
     private void handleBadRequest() {
         this.statusCode = StatusCode.BAD_REQUEST;
+        setResponseLine();
     }
 
     private void handlePostRequest() {
@@ -116,7 +116,10 @@ public class HTTPResponse {
 
     private void handleTraceRequest() {
         this.statusCode = StatusCode.OK;
-        // todo: implement
+        setResponseLine();
+        setContentLengthHeader();
+        headers.put("Content-Type", "message/http");
+        body.append(httpRequest.getRequestString());
     }
 
     private File getFile() {
@@ -129,33 +132,36 @@ public class HTTPResponse {
 
     private void handleFileExists(File requestedFile, boolean shouldSendContent) {
         String fileName = requestedFile.getName().toLowerCase();
-        setContentTypeHeader(fileName);
 
         this.statusCode = StatusCode.OK;
-        response.append(getStatusCodeResponseLine());
+        setResponseLine();
 
-        for (Map.Entry<String, String> entry : headers.entrySet()) {
-            response.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
-        }
-        response.append("\r\n");
+        setContentTypeHeaderBasedOnFileName(fileName);
 
         if (shouldSendContent) {
             try {
                 byte[] fileContent = readFile(requestedFile);
-                response.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
+                body.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
+    }
 
+    private void setHeadersString() {
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            headersString.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
+        }
     }
 
     private void handleFileNotFound() {
         this.statusCode = StatusCode.NOT_FOUND;
+        setResponseLine();
     }
 
     private void handleNotImplemented() {
         this.statusCode = StatusCode.NOT_IMPLEMENTED;
+        setResponseLine();
     }
 
     private byte[] readFile(File file) {
@@ -176,7 +182,7 @@ public class HTTPResponse {
         }
     }
 
-    private void setContentTypeHeader(String fileName) {
+    private void setContentTypeHeaderBasedOnFileName(String fileName) {
         String contentType;
 
         if (endsWithAny(fileName, HTML_SUFFIXES)) {
@@ -192,8 +198,17 @@ public class HTTPResponse {
         headers.put("Content-Type", contentType);
     }
 
-    public StringBuilder getStatusCodeResponseLine() {
-        return new StringBuilder("HTTP/1.1 ").append(statusCode.getCode()).append(" ").append(statusCode.getDescription()).append("\r\n");
+    private void setContentLengthHeader() {
+        headers.put("Content-Length", String.valueOf(httpRequest.getRequestString().length()));
+    }
+
+    public void setResponseLine() {
+        this.responseLine.append("HTTP/1.1 ").append(statusCode.getCode()).append(" ").append(statusCode.getDescription());
+    }
+
+    public void setResponse() {
+        setHeadersString();
+        response.append(responseLine).append("\r\n").append(headersString).append("\r\n").append(body);
     }
 
     public StringBuilder getResponse() {
