@@ -44,7 +44,7 @@ public class HTTPRequest {
     }
 
     private void validateAndParseRequestLine(String requestLine) {
-        String[] parts = requestLine.split(" ");
+        String[] parts = requestLine.split(" ", -1);
 
         if (parts.length != 3) {
             this.isValid = false;
