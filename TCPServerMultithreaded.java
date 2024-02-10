@@ -43,16 +43,18 @@ class ThreadRunnable implements Runnable {
             StringBuilder clientRequestBuilder = new StringBuilder();
             String line;
             boolean isThereABody = false;
+            int contentLength = 0;
 
             while (serverRunning && (line = inFromClient.readLine()) != null) {
                 clientRequestBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
                     isThereABody = true;
+                    contentLength = Integer.parseInt(line.split("Content-Length: ")[1]);
                 }
 
                 if (line.isEmpty()) {
                     if (isThereABody) {
-                        appendBodyToRequest(clientRequestBuilder, inFromClient);
+                        appendBodyToRequest(clientRequestBuilder, inFromClient, contentLength);
                     }
                     processClientRequest(clientRequestBuilder.toString(), outToClient);
                     clientRequestBuilder.setLength(0);
@@ -61,8 +63,7 @@ class ThreadRunnable implements Runnable {
         }
     }
 
-    private static void appendBodyToRequest(StringBuilder clientRequestBuilder, BufferedReader inFromClient) {
-        int contentLength = Integer.parseInt(clientRequestBuilder.toString().split("Content-Length: ")[1].split("\r\n")[0]);
+    private static void appendBodyToRequest(StringBuilder clientRequestBuilder, BufferedReader inFromClient, int contentLength) {
         char[] body = new char[contentLength];
         try {
             inFromClient.read(body, 0, contentLength);
