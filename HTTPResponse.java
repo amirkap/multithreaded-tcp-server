@@ -156,7 +156,9 @@ public class HTTPResponse {
             try {
                 byte[] fileContent = readFile(requestedFile);
                 body.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
-                headers.put("Content-Length", String.valueOf(fileContent.length));
+                if (!headers.get("Content-Type").equals("icon")) {
+                    headers.put("Content-Length", String.valueOf(fileContent.length));
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
