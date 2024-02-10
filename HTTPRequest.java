@@ -13,6 +13,7 @@ public class HTTPRequest {
     private String requestedResource;
     private boolean isImage;
     private boolean isValid = true;
+    private boolean isImplemented = true;
     private final Map<String, String> parameters = new HashMap<>();
     private final Map<String, String> headers = new HashMap<>();
     private String body = "";
@@ -28,11 +29,7 @@ public class HTTPRequest {
         String requestLine = requestLines[0];
         String[] headerLines = Arrays.copyOfRange(requestLines, 1, requestLines.length);
 
-        if (!validateAndParseRequestLine(requestLine)) {
-            isValid = false;
-            return;
-        }
-        ;
+        validateAndParseRequestLine(requestLine);
         parseHeaders(headerLines);
 
         if (parts.length > 1 && headers.containsKey("Content-Length")) {
@@ -46,17 +43,17 @@ public class HTTPRequest {
         }
     }
 
-    private boolean validateAndParseRequestLine(String requestLine) {
+    private void validateAndParseRequestLine(String requestLine) {
         String[] parts = requestLine.split(" ");
 
         if (parts.length != 3) {
-            return false;
+            this.isValid = false;
         }
 
         try {
             this.type = RequestType.valueOf(parts[0]);
         } catch (IllegalArgumentException e) {
-            return false;
+            this.isImplemented = false;
         }
 
         String url = parts[1];
@@ -71,10 +68,8 @@ public class HTTPRequest {
         this.isImage = requestedResource.matches(".*\\.(jpg|bmp|gif)$");
 
         if (!"HTTP/1.0".equals(parts[2]) && !"HTTP/1.1".equals(parts[2])) {
-            return false;
+            this.isValid = false;
         }
-
-        return true;
     }
 
     private void parseHeaders(String[] lines) {
@@ -122,9 +117,14 @@ public class HTTPRequest {
         return isValid;
     }
 
+    public boolean isImplemented() {
+        return isImplemented;
+    }
+
     public Map<String, String> getHeaders() {
         return headers;
     }
+
     public String getBody() {
         return body;
     }

@@ -56,6 +56,8 @@ public class HTTPResponse {
             handleInternalServerError();
         } else if (!httpRequest.isValid()) {
             handleBadRequest();
+        } else if (!httpRequest.isImplemented()) {
+            handleNotImplemented();
         } else {
             switch (httpRequest.getType()) {
                 case GET:
@@ -71,7 +73,7 @@ public class HTTPResponse {
                     handleTraceRequest();
                     break;
                 default:
-                    handleNotImplemented();
+                    handleInternalServerError();
                     break;
             }
         }
@@ -90,15 +92,18 @@ public class HTTPResponse {
     }
 
     private void handlePostRequest() {
-        this.statusCode = StatusCode.OK;
-        setResponseLine();
-        String fileName = httpRequest.getRequestedResource().toLowerCase();
-        setContentTypeHeaderBasedOnFileName(fileName);
-
         if (httpRequest.getRequestedResource().equals(PARAMS_INFO_HTML)) {
+            this.statusCode = StatusCode.OK;
+            setResponseLine();
+            String fileName = httpRequest.getRequestedResource().toLowerCase();
+            setContentTypeHeaderBasedOnFileName(fileName);
             body.append(embedParamsInHtml(getFullPathOfRequestedResource(), httpRequest.getParameters()));
         } else {
-            body.append(httpRequest.getBody());
+            File requestedFile = getFile();
+
+            if (requestedFile.exists() && requestedFile.isFile()) {
+                handleFileExists(requestedFile, true);
+            }
         }
     }
 
