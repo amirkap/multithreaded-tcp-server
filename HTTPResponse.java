@@ -142,7 +142,7 @@ public class HTTPResponse {
         body.append(httpRequest.getRequestString());
         setResponseLine();
         setContentLengthHeader(body.length());
-        headers.put("Content-Type", "message/http");
+        headers.put("Content-Type", "message/http"); // need to change that to the default content type based on Tsvi piazza answer
 
     }
 
@@ -165,19 +165,20 @@ public class HTTPResponse {
 
         this.statusCode = StatusCode.OK;
         setResponseLine();
-
         setContentTypeHeaderBasedOnFileName(fileName);
 
         if (shouldSendContent) {
             try {
                 byte[] fileContent = readFile(requestedFile);
                 body.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
-                if (!headers.get("Content-Type").equals("icon")) {
-                    setContentLengthHeader(body.length());
-                }
+                System.out.println(body.length());
+                setContentLengthHeader(body.length());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        }
+        else if (httpRequest.getType() == RequestType.HEAD) {
+            setContentLengthHeader((int) requestedFile.length());
         }
     }
 
