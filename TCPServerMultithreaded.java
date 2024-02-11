@@ -44,7 +44,7 @@ class ThreadRunnable implements Runnable {
             String line;
             boolean isThereABody = false;
             int contentLength = 0;
-            clientSocket.setSoTimeout(5000); // Timeout for header reading, 5 seconds is only for debugging, we should still determine the best value
+            // should we set a timout here?
             while (serverRunning && (line = inFromClient.readLine()) != null) {
                 clientRequestBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
@@ -54,8 +54,7 @@ class ThreadRunnable implements Runnable {
 
                 if (line.isEmpty()) {
                     if (isThereABody) {
-                        // different timeout for reading the body
-                        clientSocket.setSoTimeout(5000); // Timeout for header reading, 5 seconds is only for debugging, we should still determine the best value
+                        clientSocket.setSoTimeout(5000); // Timeout for body reading, 5 seconds is only for debugging, we should still determine the best value
                         appendBodyToRequest(clientRequestBuilder, contentLength);
                     }
                     processClientRequest(clientRequestBuilder.toString());
