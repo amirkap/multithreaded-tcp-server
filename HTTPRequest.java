@@ -14,6 +14,7 @@ public class HTTPRequest {
     private boolean isImage;
     private boolean isValid = true;
     private boolean isImplemented = true;
+    private boolean isTimedOut = false;
     private final Map<String, String> parameters = new HashMap<>();
     private final Map<String, String> headers = new HashMap<>();
     private String body = "";
@@ -21,6 +22,11 @@ public class HTTPRequest {
     public HTTPRequest(String httpRequest) {
         this.requestString = httpRequest;
         parseRequest(httpRequest);
+    }
+
+    public HTTPRequest(boolean isTimedOut) {
+        this.isTimedOut = isTimedOut;
+        this.requestString = "";
     }
 
     private void parseRequest(String httpRequest) {
@@ -118,6 +124,10 @@ public class HTTPRequest {
 
     public boolean isValid() {
         return isValid;
+    }
+
+    public boolean isTimedOut() {
+        return isTimedOut;
     }
 
     public boolean isImplemented() {

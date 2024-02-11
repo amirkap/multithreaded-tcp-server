@@ -11,6 +11,8 @@ class ThreadRunnable implements Runnable {
     private final Socket clientSocket;
     private final String clientIP;
     private final String clientPort;
+    private BufferedReader inFromClient;
+    private DataOutputStream outToClient;
     static volatile boolean serverRunning = true;
     private HTTPResponse httpResponse;
 
@@ -23,28 +25,26 @@ class ThreadRunnable implements Runnable {
     @Override
     public void run() {
         try {
+            openStreams();
             handleClientRequest();
         } catch (SocketException e) {
             handleSocketException(e);
         } catch (IOException e) {
+           // System.out.println("Is socket closed? " + clientSocket.isClosed());
             handleIOException(e);
         } catch (Exception e) {
             handleOtherException(e);
         } finally {
-            closeSocket();
+            closeResources();
         }
     }
 
     private void handleClientRequest() throws IOException {
-        try (
-                BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream())
-        ) {
             StringBuilder clientRequestBuilder = new StringBuilder();
             String line;
             boolean isThereABody = false;
             int contentLength = 0;
-
+            clientSocket.setSoTimeout(5000); // Timeout for header reading, 5 seconds is only for debugging, we should still determine the best value
             while (serverRunning && (line = inFromClient.readLine()) != null) {
                 clientRequestBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
@@ -54,59 +54,91 @@ class ThreadRunnable implements Runnable {
 
                 if (line.isEmpty()) {
                     if (isThereABody) {
-                        appendBodyToRequest(clientRequestBuilder, inFromClient, contentLength);
+                        // different timeout for reading the body
+                        clientSocket.setSoTimeout(5000); // Timeout for header reading, 5 seconds is only for debugging, we should still determine the best value
+                        appendBodyToRequest(clientRequestBuilder, contentLength);
                     }
-                    processClientRequest(clientRequestBuilder.toString(), outToClient);
+                    processClientRequest(clientRequestBuilder.toString());
                     clientRequestBuilder.setLength(0);
                 }
             }
-        }
+        
     }
 
-    private static void appendBodyToRequest(StringBuilder clientRequestBuilder, BufferedReader inFromClient, int contentLength) {
+    private void appendBodyToRequest(StringBuilder clientRequestBuilder, int contentLength) throws IOException {
         char[] body = new char[contentLength];
-        try {
-            inFromClient.read(body, 0, contentLength);
-        } catch (IOException e) {
-            System.err.println("Error reading body: " + e.getMessage());
-        }
+            int charsRead = inFromClient.read(body, 0, contentLength);
+            if (charsRead != contentLength) {
+                throw new IOException("Error reading body: " + charsRead + " chars read, " + contentLength + " expected");
+            }
         clientRequestBuilder.append(body);
     }
 
-    private void processClientRequest(String clientRequest, DataOutputStream outToClient) throws IOException {
+    private void processClientRequest(String clientRequest) throws IOException {
         System.out.println(clientRequest);
         HTTPRequest httpRequest = new HTTPRequest(clientRequest);
         this.httpResponse = new HTTPResponse(httpRequest);
         System.out.println(this.httpResponse.getResponse());
-        sendHttpResponseToClient(this.httpResponse, outToClient);
+        sendHttpResponseToClient(this.httpResponse);
         outToClient.flush();
-        outToClient.close();
     }
 
     private void handleSocketException(SocketException e) {
         String clientEndpoint = getClientEndpoint();
         System.err.println("SocketException: " + clientEndpoint + " - " + e.getMessage());
+        sendErrorResponse(e);
     }
 
     private void handleIOException(IOException e) {
         String clientEndpoint = getClientEndpoint();
-        System.err.println("IOException: " + clientEndpoint + " - " + e.getMessage());
-        handleResponseError();
+        String exceptionName = e instanceof SocketTimeoutException ? "SocketTimeoutException" : "IOException";
+        System.err.println(exceptionName + ": " + clientEndpoint + " - " + e.getMessage());
+        sendErrorResponse(e);
     }
 
     private void handleOtherException(Exception e) {
         String clientEndpoint = getClientEndpoint();
         System.err.println(clientEndpoint + " - " + e.getMessage());
-        handleResponseError();
+        sendErrorResponse(e);
     }
 
-    private void handleResponseError() {
-        this.httpResponse = new HTTPResponse(null);
+    private void sendErrorResponse(Exception e) {
+        if (e instanceof SocketTimeoutException) {
+            this.httpResponse = new HTTPResponse(new HTTPRequest(true));
+        } else if (e.getMessage().startsWith("Error reading body")) {
+            this.httpResponse = new HTTPResponse(new HTTPRequest("")); // invalid request
+        } else {
+            this.httpResponse = new HTTPResponse(null);
+        }
         try {
-            sendHttpResponseToClient(this.httpResponse, new DataOutputStream(clientSocket.getOutputStream()));
+            sendHttpResponseToClient(this.httpResponse);
         } catch (IOException ex) {
             String clientEndpoint = getClientEndpoint();
             System.err.println(clientEndpoint + " - " + ex.getMessage());
+        }
+    }
+
+    private void openStreams() throws IOException {
+        inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        outToClient = new DataOutputStream(clientSocket.getOutputStream());
+    }
+
+    private void closeResources() {
+        closeStreams();
+        closeSocket();
+    }
+
+    private void closeStreams() {
+        try {
+            if (inFromClient != null) {
+                inFromClient.close();
+            }
+            if (outToClient != null) {
+                outToClient.close();
+            }
+        } catch (IOException e) {
+            String clientEndpoint = getClientEndpoint();
+            System.err.println("Error closing streams for " + clientEndpoint + " - " + e.getMessage());
         }
     }
 
@@ -127,7 +159,7 @@ class ThreadRunnable implements Runnable {
         return this.clientIP + ":" + this.clientPort;
     }
 
-    private void sendHttpResponseToClient(HTTPResponse httpResponse, DataOutputStream outToClient) throws IOException {
+    private void sendHttpResponseToClient(HTTPResponse httpResponse) throws IOException {
         outToClient.writeBytes(httpResponse.getResponse().toString());
     }
 }

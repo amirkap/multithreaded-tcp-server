@@ -4,7 +4,8 @@ import java.util.Map;
 
 
 enum StatusCode {
-    OK(200, "OK"), NOT_FOUND(404, "Not Found"), NOT_IMPLEMENTED(501, "Not Implemented"), BAD_REQUEST(400, "Bad Request"), INTERNAL_SERVER_ERROR(500, "Internal Server Error");
+    OK(200, "OK"), NOT_FOUND(404, "Not Found"), NOT_IMPLEMENTED(501, "Not Implemented"), BAD_REQUEST(400, "Bad Request"), INTERNAL_SERVER_ERROR(500, "Internal Server Error"),
+    REQUEST_TIMEOUT(408, "Request Timeout");
 
     private final int code;
     private final String description;
@@ -54,7 +55,11 @@ public class HTTPResponse {
     private void handleRequest() {
         if (httpRequest == null) {
             handleInternalServerError();
-        } else if (!httpRequest.isValid()) {
+        }
+        else if (!httpRequest.isTimedOut()) {
+            handleRequestTimeout();
+        }
+         else if (!httpRequest.isValid()) {
             handleBadRequest();
         } else if (!httpRequest.isImplemented()) {
             handleNotImplemented();
@@ -88,6 +93,11 @@ public class HTTPResponse {
 
     private void handleBadRequest() {
         this.statusCode = StatusCode.BAD_REQUEST;
+        setResponseLine();
+    }
+
+    private void handleRequestTimeout() {
+        this.statusCode = StatusCode.REQUEST_TIMEOUT;
         setResponseLine();
     }
 
@@ -130,7 +140,7 @@ public class HTTPResponse {
     private void handleTraceRequest() {
         this.statusCode = StatusCode.OK;
         setResponseLine();
-        setContentLengthHeader();
+        setContentLengthHeader(httpRequest.getRequestString());
         headers.put("Content-Type", "message/http");
         body.append(httpRequest.getRequestString());
     }
@@ -162,7 +172,7 @@ public class HTTPResponse {
                 byte[] fileContent = readFile(requestedFile);
                 body.append(new String(fileContent, httpRequest.isImage() ? "ISO-8859-1" : "UTF-8"));
                 if (!headers.get("Content-Type").equals("icon")) {
-                    headers.put("Content-Length", String.valueOf(fileContent.length));
+                    setContentLengthHeader(body.toString());
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -220,8 +230,8 @@ public class HTTPResponse {
         headers.put("Content-Type", contentType);
     }
 
-    private void setContentLengthHeader() {
-        headers.put("Content-Length", String.valueOf(httpRequest.getRequestString().length()));
+    private void setContentLengthHeader(String responseBody) {
+        headers.put("Content-Length", String.valueOf(responseBody.length()));
     }
 
     public void setResponseLine() {
