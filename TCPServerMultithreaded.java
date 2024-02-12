@@ -52,13 +52,13 @@ class ThreadRunnable implements Runnable {
                     contentLength = Integer.parseInt(line.split("Content-Length: ")[1]);
                 }
 
-                if (line.isEmpty()) {
+                if (line.equals(line)) {
                     if (isThereABody) {
                         clientSocket.setSoTimeout(5000); // Timeout for body reading, 5 seconds is only for debugging, we should still determine the best value
                         appendBodyToRequest(clientRequestBuilder, contentLength);
                     }
                     processClientRequest(clientRequestBuilder.toString());
-                    clientRequestBuilder.setLength(0);
+                    return;
                 }
             }
         
@@ -145,12 +145,12 @@ class ThreadRunnable implements Runnable {
         try {
             if (serverRunning) {
                 String clientEndpoint = getClientEndpoint();
-                System.out.println(clientEndpoint + " disconnected!");
                 clientSocket.close();
+                System.out.println(clientEndpoint + " disconnected!");
             }
         } catch (IOException e) {
             String clientEndpoint = getClientEndpoint();
-            System.err.println(clientEndpoint + " - " + e.getMessage());
+            System.err.println("Error closing socket:" + clientEndpoint + " - " + e.getMessage());
         }
     }
 
