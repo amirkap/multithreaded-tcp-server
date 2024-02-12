@@ -52,13 +52,13 @@ class ThreadRunnable implements Runnable {
                     contentLength = Integer.parseInt(line.split("Content-Length: ")[1]);
                 }
 
-                if (line.equals(line)) {
+                if (line.isEmpty()) {
                     if (isThereABody) {
                         clientSocket.setSoTimeout(5000); // Timeout for body reading, 5 seconds is only for debugging, we should still determine the best value
                         appendBodyToRequest(clientRequestBuilder, contentLength);
                     }
                     processClientRequest(clientRequestBuilder.toString());
-                    return;
+                    return; // we close the connection after the response
                 }
             }
         
