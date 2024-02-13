@@ -44,8 +44,7 @@ class ThreadRunnable implements Runnable {
             String line;
             boolean isThereABody = false;
             int contentLength = 0;
-            // should we set a timout here?
-            while (serverRunning && (line = inFromClient.readLine()) != null) { 
+            while (serverRunning && (line = inFromClient.readLine()) != null) {
                 clientRequestBuilder.append(line).append("\r\n");
                 if (line.startsWith("Content-Length:")) {
                     isThereABody = true;
