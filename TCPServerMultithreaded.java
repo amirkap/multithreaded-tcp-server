@@ -54,7 +54,7 @@ class ThreadRunnable implements Runnable {
 
                 if (line.isEmpty()) {
                     if (isThereABody) {
-                        clientSocket.setSoTimeout(50000); // Timeout for body reading, 5 seconds is only for debugging, we should still determine the best value
+                        clientSocket.setSoTimeout(60000); // Timeout for body reading - 1 minute
                         appendBodyToRequest(clientRequestBuilder, contentLength);
                     }
                     processClientRequest(clientRequestBuilder.toString());
@@ -67,7 +67,7 @@ class ThreadRunnable implements Runnable {
     private void appendBodyToRequest(StringBuilder clientRequestBuilder, int contentLength) throws IOException {
         char[] body = new char[contentLength];
             int charsRead = inFromClient.read(body, 0, contentLength);
-            if (charsRead < contentLength) { // not sure how to handle scenario where user sends more data than content-length
+            if (charsRead < contentLength) { // invalid request
                 throw new IOException("Error reading body: " + charsRead + " chars read, " + contentLength + " expected");
             }
         clientRequestBuilder.append(body);
