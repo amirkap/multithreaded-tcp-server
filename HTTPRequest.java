@@ -57,7 +57,10 @@ public class HTTPRequest {
             this.isValid = false;
             return;
         }
-
+        if (!"HTTP/1.0".equals(parts[2]) && !"HTTP/1.1".equals(parts[2])) {
+            this.isValid = false;
+            return;
+        }
         try {
             this.type = RequestType.valueOf(parts[0]);
         } catch (IllegalArgumentException e) {
@@ -75,11 +78,6 @@ public class HTTPRequest {
         }
 
         this.isImage = requestedResource.matches(".*\\.(jpg|bmp|gif)$");
-
-        if (!"HTTP/1.0".equals(parts[2]) && !"HTTP/1.1".equals(parts[2])) {
-            this.isValid = false;
-            return;
-        }
     }
 
     private void parseHeaders(String[] lines) {
