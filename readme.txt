@@ -23,14 +23,13 @@ HTTPResponse.java:
 ------------------
 Responsible for generating HTTP responses based on the processed requests.
 It sets appropriate status codes, headers, and body content, handling file serving and error reporting.
- Supports content type determination for text and binary files, and implements chunked transfer encoding.
+Supports content type determination for text and binary files, and implements chunked transfer encoding.
 
 Design Overview
 ---------------
 
 The server's design emphasizes concurrency and modularity. 
 By processing each client connection in a separate thread, the server can handle multiple connections simultaneously without blocking.
-This design is particularly effective for I/O-bound operations such as network communication.
 Configuration flexibility is provided through an external config.ini file, allowing easy adjustments to server settings such as port number and root directory without modifying the source code.
 
 Server Flow:
@@ -41,4 +40,14 @@ Server Flow:
 4. The 'HTTPResponse' class constructs an appropriate response, which includes setting the status code, headers, and any response body content.
 5. The response is sent back to the client, and the connection is closed or kept alive for further requests, depending on the HTTP headers.
 
-External shell scripts (compile.sh and run.sh) streamline the compilation and execution process, ensuring that the server can be easily built and run from various environments.
+Important Notes
+---------------
+
+1. The server parses an HTTP request body *only* if the 'Content-Length' header is specified in the request header part
+ and its value is greater than 0. In such cases, the server attempts to read the number of bytes equal to the value specified by 'Content-Length'.
+
+2. Only in the case of a TRACE request, if the server's response code is 200 OK, then the 'Content-Type' header value of the response is always 'message/http',
+ regardless of the requested resource type.
+
+ 3. Our server uses non-persistent connections, meaning it closes the connection (closes the client's socket) immediately after sending the response to the client. 
+ This approach simplifies connection management but requires clients to establish a new connection for each request.

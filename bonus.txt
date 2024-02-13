@@ -1,0 +1,6 @@
+Bonus features
+--------------
+
+1. As a bonus feature, our server implements a timeout mechanism for reading the request body.
+If the server does not receive the complete request body within a specified timeout period, it responds with a 408 Request Timeout response code.
+This enhancement improves the robustness of our server by preventing it from waiting indefinitely for a client to send a request body, thereby handling slow or unresponsive clients more effectively.
