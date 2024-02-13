@@ -30,6 +30,10 @@ public class HTTPRequest {
     }
 
     private void parseRequest(String httpRequest) {
+        if (httpRequest.trim().isEmpty()) {
+            this.isValid = false;
+            return;
+        }
         String[] parts = httpRequest.split("\r\n\r\n", 2);
         String[] requestLines = parts[0].split("\r\n");
         String requestLine = requestLines[0];
@@ -41,13 +45,10 @@ public class HTTPRequest {
         if (parts.length > 1 && headers.containsKey("Content-Length")) {
             this.body = parts[1];
         }
-        String contentType = headers.get("Content-Type");
-        if (contentType != null) {
-            if (contentType.contains("application/x-www-form-urlencoded")) {
+        if (!this.body.isEmpty() && (this.type == RequestType.POST || this.type == RequestType.GET)) {
                 parseParameters(this.body);
             }
         }
-    }
 
     private void validateAndParseRequestLine(String requestLine) {
         String[] parts = requestLine.split(" ", -1);

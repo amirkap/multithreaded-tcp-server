@@ -142,7 +142,7 @@ public class HTTPResponse {
         body.append(httpRequest.getRequestString());
         setResponseLine();
         setContentLengthHeader(body.length());
-        headers.put("Content-Type", "message/http"); // need to change that to the default content type based on Tsvi piazza answer
+        headers.put("Content-Type", "message/http"); // not sure if we should change this baed on resource type, becasue it's a TRACE request
 
     }
 
