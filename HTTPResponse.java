@@ -142,8 +142,8 @@ public class HTTPResponse {
         body.append(httpRequest.getRequestString());
         setResponseLine();
         setContentLengthHeader(body.length());
-        headers.put("Content-Type", "message/http"); // not sure if we should change this baed on resource type, becasue it's a TRACE request
-
+        headers.put("Content-Type", "message/http");
+        // we don't need to check for the given resource, as we don't need anything from it in this type of request
     }
 
     private File getFile() {
@@ -240,14 +240,14 @@ public class HTTPResponse {
     }
 
     public void setResponse() {
-        setHeadersString();
         manipulateBodyBasedOnChunkHeader();
+        setHeadersString();
 
         response.append(responseLine).append("\r\n").append(headersString).append("\r\n").append(body);
     }
 
     private void manipulateBodyBasedOnChunkHeader() {
-        if (shouldUseChunkedEncoding()) {
+        if (httpRequest.getType() != RequestType.HEAD && shouldUseChunkedEncoding()) {
             headers.put("Transfer-Encoding", "chunked");
             chunkBody();
         }

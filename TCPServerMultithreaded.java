@@ -30,7 +30,6 @@ class ThreadRunnable implements Runnable {
         } catch (SocketException e) {
             handleSocketException(e);
         } catch (IOException e) {
-           // System.out.println("Is socket closed? " + clientSocket.isClosed());
             handleIOException(e);
         } catch (Exception e) {
             handleOtherException(e);
